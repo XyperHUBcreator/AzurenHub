@@ -1,0 +1,405 @@
+-- ============================================================
+-- AZURENHUB - PIGGY 2X XP (RAYFIELD GEN2) - v15
+-- Novidade: Tema Azul + Nome AzurenHub + Nuke
+-- ============================================================
+
+-- [0] Limpeza
+for _, obj in pairs(workspace:GetDescendants()) do
+    for _, n in ipairs({"ESP_Highlight", "ESP_Billboard"}) do
+        local f = obj:FindFirstChild(n); if f then f:Destroy() end
+    end
+end
+pcall(function() if Drawing and Drawing.clear then Drawing.clear() end end)
+
+-- [1] Streaming
+pcall(function()
+    if workspace.StreamingEnabled then
+        workspace.StreamingTargetRadius = 100000
+        workspace.StreamingMinRadius  = 100000
+    end
+end)
+
+-- [2] Rayfield
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
+
+-- [3] Tema Azul (Azuren)
+local BlueTheme = {
+    TextColor = Color3.fromRGB(255,255,255), Background = Color3.fromRGB(15,15,15),
+    Topbar = Color3.fromRGB(10,50,100), Shadow = Color3.fromRGB(5,5,5),
+    NotificationBackground = Color3.fromRGB(15,15,15), NotificationActionsBackground = Color3.fromRGB(50,50,50),
+    TabBackground = Color3.fromRGB(20,60,120), TabStroke = Color3.fromRGB(0,150,255),
+    TabBackgroundSelected = Color3.fromRGB(0,150,255), TabTextColor = Color3.fromRGB(255,255,255),
+    SelectedTabTextColor = Color3.fromRGB(255,255,255), ElementBackground = Color3.fromRGB(20,40,60),
+    ElementBackgroundHover = Color3.fromRGB(30,60,90), SecondaryElementBackground = Color3.fromRGB(15,30,45),
+    ElementStroke = Color3.fromRGB(0,100,200), SecondaryElementStroke = Color3.fromRGB(0,50,100),
+    SliderBackground = Color3.fromRGB(0,150,255), SliderProgress = Color3.fromRGB(0,150,255),
+    SliderStroke = Color3.fromRGB(0,200,255), ToggleBackground = Color3.fromRGB(20,40,60),
+    ToggleEnabled = Color3.fromRGB(0,150,255), ToggleDisabled = Color3.fromRGB(50,50,50),
+    ToggleEnabledStroke = Color3.fromRGB(0,200,255), ToggleDisabledStroke = Color3.fromRGB(80,80,80),
+    ToggleEnabledOuterStroke = Color3.fromRGB(0,100,200), ToggleDisabledOuterStroke = Color3.fromRGB(40,40,40),
+    DropdownSelected = Color3.fromRGB(20,60,120), DropdownUnselected = Color3.fromRGB(20,40,60),
+    InputBackground = Color3.fromRGB(20,40,60), InputStroke = Color3.fromRGB(0,150,255),
+    PlaceholderColor = Color3.fromRGB(150,150,150),
+}
+
+local Window = Rayfield:CreateWindow({
+    name = "Piggy 2x XP - AzurenHub",
+    subtitle = "v15 - Bot Nuke",
+    theme = BlueTheme,
+    configuration = { autoSave = true, autoLoad = true, fileName = "AzurenHub" },
+    keySystem = false
+})
+
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP         = Players.LocalPlayer
+local WS         = workspace
+
+-- [4] Jogador
+local PlayerTab = Window:CreateTab({ name = "Jogador", icon = 4483362458 })
+PlayerTab:CreateSlider({
+    name = "WalkSpeed", range = {16,300}, increment = 1, suffix = "spd",
+    value = 16, flag = "SpeedSlider",
+    callback = function(v)
+        if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+            LP.Character.Humanoid.WalkSpeed = v
+        end
+    end
+})
+
+local Config = { MaxDistance = 100, ShowDistance = true, Optimization = true, Tracer = false, RenderHighlights = false }
+
+-- ============================================================
+-- FUNÇÕES UTILITÁRIAS
+-- ============================================================
+local function cleanName(rawName)
+    local name = rawName:gsub("%d+", "")
+    name = name:gsub("_", " "):gsub("%-", " ")
+    name = name:gsub("(%l)(%u)", "%1 %2")
+    name = name:gsub("%s+", " ")
+    return name:match("^%s*(.-)%s*$")
+end
+
+local itemKeywords = {"key", "gear", "engrenagem", "wrench", "crowbar", "hammer", "pickup", "item", "collectable", "battery", "plank", "toy", "candle", "radio", "weapon", "flashlight", "medkit", "tool", "object", "prop", "sword", "gun", "melee", "quest", "scrap", "fuse", "wire"}
+
+local function getRealItemName(obj)
+    local name = obj.Name
+    local n = name:lower()
+    if n == "item" or n == "key" or n == "gear" or n == "tool" or n == "part" or n == "pickup" or n == "object" or n == "model" then
+        for _, child in ipairs(obj:GetDescendants()) do
+            local cName = child.Name:lower()
+            for _, kw in ipairs(itemKeywords) do
+                if cName:find(kw) then return cleanName(child.Name) end
+            end
+        end
+    end
+    if obj:IsA("Tool") and obj.ToolTip ~= "" then return cleanName(obj.ToolTip) end
+    return cleanName(name)
+end
+
+local function getColorFromName(name)
+    local n = name:lower()
+    if n:find("green") then return Color3.fromRGB(0, 255, 0) end
+    if n:find("blue") then return Color3.fromRGB(0, 150, 255) end
+    if n:find("cyan") then return Color3.fromRGB(0, 255, 255) end
+    if n:find("red") then return Color3.fromRGB(255, 0, 0) end
+    if n:find("yellow") then return Color3.fromRGB(255, 255, 0) end
+    if n:find("purple") then return Color3.fromRGB(180, 0, 255) end
+    if n:find("orange") then return Color3.fromRGB(255, 100, 0) end
+    if n:find("pink") then return Color3.fromRGB(255, 105, 180) end
+    return Color3.fromRGB(255, 255, 255)
+end
+
+local function getBestPart(obj)
+    if obj:IsA("BasePart") then return obj end
+    for _, v in ipairs(obj:GetChildren()) do
+        if v:IsA("BasePart") and v.Transparency < 0.9 then return v end
+    end
+    return obj:FindFirstChildWhichIsA("BasePart") or obj.PrimaryPart
+end
+
+-- ============================================================
+-- FILTROS
+-- ============================================================
+local function isPlayerChar(obj) return Players:GetPlayerFromCharacter(obj) ~= nil end
+local function isHeldByMe(obj)
+    if obj:IsDescendantOf(LP.Character) then return true end
+    local bp = LP:FindFirstChild("Backpack")
+    return bp and obj:IsDescendantOf(bp)
+end
+local function isJunk(name)
+    local n = name:lower()
+    return n:find("unlock") or n:find("button") or n:find("screen") or n:find("generator") or n:find("hitbox") or n:find("effect")
+end
+
+local function isPiggyModel(obj)
+    return obj:IsA("Model") and not isPlayerChar(obj) and obj ~= LP.Character 
+           and not isJunk(obj.Name) and obj:FindFirstChildOfClass("Humanoid") ~= nil
+end
+
+local function isItemObject(obj)
+    if isPlayerChar(obj) or isHeldByMe(obj) or isJunk(obj.Name) then return false end
+    if obj:IsA("Tool") then return true end
+    local n = obj.Name:lower()
+    if n == "part" or n == "handle" or n == "main" or n == "" then return false end
+    for _, kw in ipairs(itemKeywords) do if n:find(kw) then return true end end
+    if obj:IsA("Model") or obj:IsA("BasePart") then
+        for _, child in ipairs(obj:GetChildren()) do
+            local cName = child.Name:lower()
+            for _, kw in ipairs(itemKeywords) do if cName:find(kw) then return true end end
+        end
+    end
+    if obj.Parent and obj.Parent ~= WS then
+        local pName = obj.Parent.Name:lower()
+        if pName:find("item") or pName:find("pickup") or pName:find("tool") or pName:find("drop") then return true end
+    end
+    return false
+end
+
+local function isLockObject(obj)
+    if isPlayerChar(obj) or isHeldByMe(obj) or isJunk(obj.Name) then return false end
+    if obj:IsA("BasePart") and obj.Parent and obj.Parent:IsA("Model") then return false end
+    local n = obj.Name:lower()
+    if n == "main" or n == "door" or n:find("hinge") or n:find("frame") then return false end
+    return (n:find("lock") or n:find("door")) and not n:find("unlock")
+end
+
+-- ============================================================
+-- MOTOR DE ESP
+-- ============================================================
+local espCfg = { player = {active=false}, piggy = {active=false}, item = {active=false}, lock = {active=false} }
+local tracked = {}  
+
+local function createESPs(obj, category)
+    if tracked[obj] or obj:FindFirstChild("ESP_Billboard") then return end
+    local realName = getRealItemName(obj)
+    if realName == "" then return end 
+
+    local color = getColorFromName(realName)
+    local prefix = ""
+    if category == "item" then prefix = "[ITEM] "; if color == Color3.fromRGB(255,255,255) then color = Color3.fromRGB(0, 255, 0) end
+    elseif category == "lock" then prefix = "[LOCK] "; if color == Color3.fromRGB(255,255,255) then color = Color3.fromRGB(255, 165, 0) end
+    elseif category == "piggy" then prefix = "[PIGGY] "; color = Color3.fromRGB(255, 0, 255)
+    elseif category == "player" then prefix = "[PLAYER] "; color = Color3.fromRGB(255, 0, 0) end
+
+    local bestPart = getBestPart(obj) or obj
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESP_Billboard"
+    bb.Adornee = bestPart 
+    bb.Size = UDim2.new(0, 100, 0, 15)
+    bb.StudsOffset = Vector3.new(0, 2, 0)
+    bb.AlwaysOnTop = true
+    bb.MaxDistance = math.huge
+    bb.LightInfluence = 0
+    bb.Parent = bestPart 
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Label"
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = color
+    label.TextStrokeTransparency = 0.5 
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Text = prefix .. realName
+    label.Parent = bb
+
+    local tracer = nil
+    if Drawing then
+        tracer = Drawing.new("Line")
+        tracer.Thickness = 1
+        tracer.Color = color
+        tracer.Visible = false
+    end
+
+    tracked[obj] = { highlight = nil, billboard = bb, category = category, part = bestPart, tracer = tracer, color = color }
+end
+
+local function removeESPs(obj)
+    local d = tracked[obj]; if not d then return end
+    if d.highlight then d.highlight:Destroy() end
+    if d.billboard then d.billboard:Destroy() end
+    if d.tracer then d.tracer:Remove() end
+    tracked[obj] = nil
+end
+
+local function clearCategory(cat)
+    for obj, d in pairs(tracked) do
+        if d.category == cat then removeESPs(obj) end
+    end
+end
+
+local function scanAndApply()
+    for _, obj in pairs(WS:GetDescendants()) do
+        if espCfg.player.active and obj:IsA("Model") and isPlayerChar(obj) and obj ~= LP.Character then createESPs(obj, "player")
+        elseif espCfg.piggy.active and isPiggyModel(obj) then createESPs(obj, "piggy")
+        elseif espCfg.item.active and isItemObject(obj) then createESPs(obj, "item")
+        elseif espCfg.lock.active and isLockObject(obj) then createESPs(obj, "lock") end
+    end
+end
+
+WS.DescendantAdded:Connect(function(obj)
+    task.wait(0.1)
+    if espCfg.player.active and obj:IsA("Model") and isPlayerChar(obj) then createESPs(obj, "player")
+    elseif espCfg.piggy.active and isPiggyModel(obj) then createESPs(obj, "piggy")
+    elseif espCfg.item.active and isItemObject(obj) then createESPs(obj, "item")
+    elseif espCfg.lock.active and isLockObject(obj) then createESPs(obj, "lock") end
+end)
+
+task.spawn(function()
+    while task.wait(0.1) do
+        local char = LP.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+        local cam = workspace.CurrentCamera
+        local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y)
+
+        for obj, d in pairs(tracked) do
+            if not obj or not obj.Parent or not d.part or not d.part.Parent then
+                removeESPs(obj)
+            else
+                local dist = math.floor((hrp.Position - d.part.Position).Magnitude)
+                if dist <= Config.MaxDistance then
+                    d.billboard.Enabled = true
+                    local prefix = ""
+                    if d.category == "item" then prefix = "[ITEM] "
+                    elseif d.category == "lock" then prefix = "[LOCK] "
+                    elseif d.category == "piggy" then prefix = "[PIGGY] "
+                    elseif d.category == "player" then prefix = "[PLAYER] " end
+                    d.billboard.Label.Text = Config.ShowDistance and (prefix .. getRealItemName(obj) .. " [" .. dist .. "m]") or (prefix .. getRealItemName(obj))
+                    if Config.Optimization then
+                        d.billboard.Size = UDim2.new(0, 80, 0, 10)
+                        d.billboard.StudsOffset = Vector3.new(0, 1, 0)
+                    else
+                        d.billboard.Size = UDim2.new(0, 150, 0, 20)
+                        d.billboard.StudsOffset = Vector3.new(0, 2, 0)
+                    end
+                    if Config.Tracer and d.tracer then
+                        local screenPos, onScreen = cam:WorldToViewportPoint(d.part.Position)
+                        if onScreen then
+                            d.tracer.From = screenCenter
+                            d.tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                            d.tracer.Visible = true
+                        else d.tracer.Visible = false end
+                    elseif d.tracer then d.tracer.Visible = false end
+                    if Config.RenderHighlights then
+                        if not d.highlight then
+                            local hl = Instance.new("Highlight")
+                            hl.FillColor = d.color
+                            hl.OutlineColor = Color3.fromRGB(255,255,255)
+                            hl.FillTransparency = 0.8
+                            hl.OutlineTransparency = 0.2
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            hl.Parent = obj
+                            d.highlight = hl
+                        end
+                    else if d.highlight then d.highlight:Destroy(); d.highlight = nil end end
+                else
+                    d.billboard.Enabled = false
+                    if d.tracer then d.tracer.Visible = false end
+                    if d.highlight then d.highlight:Destroy(); d.highlight = nil end
+                end
+            end
+        end
+    end
+end)
+
+-- ============================================================
+-- ABA ESP CONFIG
+-- ============================================================
+local ConfigTab = Window:CreateTab({ name = "ESP Config", icon = 4483362458 })
+ConfigTab:CreateSlider({ name = "Distância Máxima (Metros)", range = {20, 300}, increment = 10, suffix = "m", value = Config.MaxDistance, callback = function(v) Config.MaxDistance = v end })
+ConfigTab:CreateToggle({ name = "Otimização Extrema (Texto Pequeno)", value = Config.Optimization, callback = function(v) Config.Optimization = v end })
+ConfigTab:CreateToggle({ name = "Tracer (Linhas na Tela)", value = Config.Tracer, callback = function(v) Config.Tracer = v end })
+ConfigTab:CreateToggle({ name = "Mostrar Distância", value = Config.ShowDistance, callback = function(v) Config.ShowDistance = v end })
+ConfigTab:CreateToggle({
+    name = "Renderizar Brilho (Highlight) [TRAVA CELULAR]",
+    value = Config.RenderHighlights,
+    callback = function(v)
+        Config.RenderHighlights = v
+        if not v then for obj, d in pairs(tracked) do if d.highlight then d.highlight:Destroy(); d.highlight = nil end end end
+    end
+})
+
+-- ============================================================
+-- ABA ESP CATEGORIAS
+-- ============================================================
+local ESPTab = Window:CreateTab({ name = "ESP Categorias", icon = 4483362458 })
+local function bindToggle(name, flag, cat)
+    ESPTab:CreateToggle({
+        name = name, value = false, flag = flag,
+        callback = function(v)
+            espCfg[cat].active = v
+            if v then scanAndApply() else clearCategory(cat) end
+        end
+    })
+end
+bindToggle("ESP Jogadores", "ESP_Players", "player")
+bindToggle("ESP Piggy", "ESP_Piggy", "piggy")
+bindToggle("ESP Itens / Chaves", "ESP_Items", "item")
+bindToggle("ESP Cadeados / Portas", "ESP_Locks", "lock")
+
+-- ============================================================
+-- ABA AUTOS
+-- ============================================================
+local AutoTab = Window:CreateTab({ name = "Autos", icon = 4483362458 })
+
+-- Função do Nuke
+local nukeActive = false
+local function executeNuke()
+    for _, obj in pairs(WS:GetDescendants()) do
+        if isPiggyModel(obj) then
+            obj:Destroy()
+        end
+    end
+end
+
+AutoTab:CreateToggle({
+    name = "Auto Remover Piggys (Nuke) [Faz sumir]",
+    value = false,
+    callback = function(v)
+        nukeActive = v
+        if v then executeNuke() end
+    end
+})
+
+-- Loop para pegar bots que nascerem depois
+task.spawn(function()
+    while task.wait(1) do
+        if nukeActive then executeNuke() end
+    end
+end)
+
+-- Skins
+local function equipSkin(skinName)
+    for _, gui in ipairs(LP.PlayerGui:GetDescendants()) do
+        if (gui:IsA("TextButton") or gui:IsA("ImageButton")) and (gui.Name:lower():find(skinName:lower()) or (gui.Text and gui.Text:lower():find(skinName:lower()))) then
+            gui:Activate(); return true
+        end
+    end
+    return false
+end
+AutoTab:CreateButton({ name = "Equipar Skin '3 Vegetables'", callback = function() equipSkin("vegetable") end })
+AutoTab:CreateButton({ name = "Equipar Skin 'Cornélia'", callback = function() equipSkin("cornelia") end })
+
+-- Auto Escape
+local autoEscapeActive = false
+AutoTab:CreateToggle({ name = "Auto Escape", value = false, callback = function(v) autoEscapeActive = v end })
+task.spawn(function()
+    while task.wait(1) do
+        if autoEscapeActive then
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, obj in ipairs(WS:GetDescendants()) do
+                    if obj:IsA("BasePart") and (obj.Name:lower():find("exit") or obj.Name:lower():find("helicopter")) then
+                        hrp.CFrame = CFrame.new(obj.Position + Vector3.new(0, 5, 0))
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
+
+Window:Notify({ title = "AzurenHub - Piggy 2x XP", content = "Carregado com sucesso! Nuke na aba Autos.", duration = 4 })
